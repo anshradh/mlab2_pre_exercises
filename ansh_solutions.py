@@ -133,17 +133,11 @@ def temperatures_normalized(temps: t.Tensor) -> t.Tensor:
     Pass torch.std to reduce.
     """
     return rearrange(
-        (
-            rearrange(temps, "(weeks days) -> weeks days", days=7)
-            - rearrange(temperatures_average(temps), "weeks -> weeks 1")
-        )
-        / rearrange(
-            reduce(
-                rearrange(temps, "(weeks days) -> weeks days", days=7),
-                "weeks days -> weeks",
-                t.std,
-            ),
-            "weeks -> weeks 1",
+        rearrange(temperatures_differences(temps), "(weeks days) -> weeks days", days=7)
+        / reduce(
+            rearrange(temps, "(weeks days) -> weeks days", days=7),
+            "weeks days -> weeks 1",
+            t.std,
         ),
         "weeks days -> (weeks days)",
     )
@@ -216,8 +210,8 @@ def identity_matrix(n: int) -> t.Tensor:
     Bonus: find a different way to do it.
     """
     assert n >= 0
-    # return rearrange(t.arange(n), "x -> 1 x") == rearrange(t.arange(n), "x -> x 1")
-    return t.arange(n)[None, :] == t.arange(n)[:, None]
+    return rearrange(t.arange(n), "x -> 1 x") == rearrange(t.arange(n), "x -> x 1")
+    # return t.arange(n)[None, :] == t.arange(n)[:, None]
 
 
 assert_all_equal(identity_matrix(3), t.Tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]))
@@ -238,7 +232,6 @@ def sample_distribution(probs: t.Tensor, n: int) -> t.Tensor:
     """
     assert abs(probs.sum() - 1.0) < 0.001
     assert (probs >= 0).all()
-    k = probs.shape
     return t.argmax(
         t.where(t.rand(n)[:, None] <= t.cumsum(probs, 0)[None, :], 1, 0), dim=1
     )
