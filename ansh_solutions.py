@@ -367,7 +367,10 @@ def batched_logsumexp(matrix: t.Tensor) -> t.Tensor:
     - https://leimao.github.io/blog/LogSumExp/
     - https://gregorygundersen.com/blog/2020/02/09/log-sum-exp/
     """
-    pass
+    max_per_row = t.amax(matrix, dim=1, keepdim=True)
+    return (
+        max_per_row + t.log(t.sum(t.exp(matrix - max_per_row), dim=1, keepdim=True))
+    ).squeeze(1)
 
 
 matrix = t.tensor([[-1000, -1000, -1000, -1000], [1000, 1000, 1000, 1000]])
@@ -379,7 +382,7 @@ expected2 = t.logsumexp(matrix2, dim=-1)
 actual2 = batched_logsumexp(matrix2)
 assert_all_close(actual2, expected2)
 
-
+#%%
 def batched_softmax(matrix: t.Tensor) -> t.Tensor:
     """For each row of the matrix, compute softmax(row).
 
@@ -390,7 +393,9 @@ def batched_softmax(matrix: t.Tensor) -> t.Tensor:
 
     Return: (batch, n). For each i, out[i] should sum to 1.
     """
-    pass
+    max_per_row = t.amax(matrix, dim=1, keepdim=True)
+    mod_matrix = matrix - max_per_row
+    return t.exp(mod_matrix) / t.exp(mod_matrix).sum(1, keepdim=True)
 
 
 matrix = t.arange(1, 6).view((1, 5)).float().log()
@@ -406,7 +411,7 @@ assert actual2.max() <= 1.0
 assert_all_equal(actual2.argsort(), matrix2.argsort())
 assert_all_close(actual2.sum(dim=-1), t.ones(matrix2.shape[:-1]))
 
-
+#%%
 def batched_logsoftmax(matrix: t.Tensor) -> t.Tensor:
     """Compute log(softmax(row)) for each row of the matrix.
 
@@ -417,7 +422,7 @@ def batched_logsoftmax(matrix: t.Tensor) -> t.Tensor:
     Do this without using PyTorch's logsoftmax function.
     For each row, subtract the maximum first to avoid overflow if the row contains large values.
     """
-    pass
+    return t.log(batched_softmax(matrix))
 
 
 matrix = t.arange(1, 6).view((1, 5)).float()
@@ -427,7 +432,7 @@ actual = batched_logsoftmax(matrix2)
 expected = t.tensor([[-4.4519, -3.4519, -2.4519, -1.4519, -0.4519]])
 assert_all_close(actual, expected)
 
-
+#%%
 def batched_cross_entropy_loss(logits: t.Tensor, true_labels: t.Tensor) -> t.Tensor:
     """Compute the cross entropy loss for each example in the batch.
 
@@ -439,7 +444,8 @@ def batched_cross_entropy_loss(logits: t.Tensor, true_labels: t.Tensor) -> t.Ten
     Hint: convert the logits to log-probabilities using your batched_logsoftmax from above.
     Then the loss for an example is just the negative of the log-probability that the model assigned to the true class. Use torch.gather to perform the indexing.
     """
-    pass
+    log_probs = batched_logsoftmax(logits)
+    return -1 * log_probs.gather(1, true_labels[:, None]).squeeze(1)
 
 
 logits = t.tensor(
@@ -450,7 +456,7 @@ expected = t.tensor([0.0, math.log(3), float("inf")])
 actual = batched_cross_entropy_loss(logits, true_labels)
 assert_all_close(actual, expected)
 
-
+#%%
 def collect_rows(matrix: t.Tensor, row_indexes: t.Tensor) -> t.Tensor:
     """Return a 2D matrix whose rows are taken from the input matrix in order according to row_indexes.
 
@@ -460,7 +466,7 @@ def collect_rows(matrix: t.Tensor, row_indexes: t.Tensor) -> t.Tensor:
     Return: shape (k, n). out[i] is matrix[row_indexes[i]].
     """
     assert row_indexes.max() < matrix.shape[0]
-    pass
+    return matrix[row_indexes]
 
 
 matrix = t.arange(15).view((5, 3))
@@ -469,7 +475,7 @@ actual = collect_rows(matrix, row_indexes)
 expected = t.tensor([[0, 1, 2], [6, 7, 8], [3, 4, 5], [0, 1, 2]])
 assert_all_equal(actual, expected)
 
-
+#%%
 def collect_columns(matrix: t.Tensor, column_indexes: t.Tensor) -> t.Tensor:
     """Return a 2D matrix whose columns are taken from the input matrix in order according to column_indexes.
 
@@ -481,7 +487,7 @@ def collect_columns(matrix: t.Tensor, column_indexes: t.Tensor) -> t.Tensor:
     Bonus: explain why matrix[:, column_indexes] doesn't work as a solution.
     """
     assert column_indexes.max() < matrix.shape[1]
-    pass
+    return matrix[:, column_indexes].transpose(0, 1)
 
 
 matrix = t.arange(15).view((5, 3))
@@ -491,3 +497,94 @@ expected = t.tensor(
     [[0, 3, 6, 9, 12], [2, 5, 8, 11, 14], [1, 4, 7, 10, 13], [0, 3, 6, 9, 12]]
 )
 assert_all_equal(actual, expected)
+#%%
+from collections import namedtuple
+
+TestCase = namedtuple("TestCase", ["output", "size", "stride"])
+test_input_a = t.tensor(
+    [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19]]
+)
+test_cases = [
+    TestCase(output=t.tensor([0, 1, 2, 3]), size=(4,), stride=(1,)),
+    TestCase(output=t.tensor([[0, 1, 2], [5, 6, 7]]), size=(2, 3), stride=(5, 1)),
+    TestCase(output=t.tensor([[0, 0, 0], [11, 11, 11]]), size=(2, 3), stride=(11, 0)),
+    TestCase(output=t.tensor([0, 6, 12, 18]), size=(4,), stride=(6,)),
+    TestCase(
+        output=t.tensor([[[0, 1, 2]], [[9, 10, 11]]]), size=(2, 2, 3), stride=(9, 0, 1)
+    ),
+    TestCase(
+        output=t.tensor(
+            [
+                [[[0, 1], [2, 3]], [[4, 5], [6, 7]]],
+                [[[12, 13], [14, 15]], [[16, 17], [18, 19]]],
+            ]
+        ),
+        size=(2, 2, 2, 2),
+        stride=(12, 4, 2, 1),
+    ),
+]
+for (i, case) in enumerate(test_cases):
+    actual = test_input_a.as_strided(size=case.size, stride=case.stride)
+    if (case.output != actual).any():
+        print(f"Test {i} failed:")
+        print(f"Expected: {case.output}")
+        print(f"Actual: {actual}")
+    else:
+        print(f"Test {i} passed!")
+#%%
+def test_relu(relu_func):
+    print(f"Testing: {relu_func.__name__}")
+    x = t.arange(-1, 3, dtype=t.float32, requires_grad=True)
+    out = relu_func(x)
+    expected = t.tensor([0.0, 0.0, 1.0, 2.0])
+    assert_all_close(out, expected)
+
+
+#%%
+
+
+def relu_clone_setitem(x: t.Tensor) -> t.Tensor:
+    """Make a copy with torch.clone and then assign to parts of the copy."""
+    clone = x.clone()
+    clone[x < 0] = 0.0
+    return clone
+
+
+test_relu(relu_clone_setitem)
+#%%
+
+
+def relu_where(x: t.Tensor) -> t.Tensor:
+    """Use torch.where."""
+    return t.where(x > 0, x, 0.0)
+
+
+test_relu(relu_where)
+#%%
+
+
+def relu_maximum(x: t.Tensor) -> t.Tensor:
+    """Use torch.maximum."""
+    return t.max(x, t.Tensor([0.0]))
+
+
+test_relu(relu_maximum)
+#%%
+
+
+def relu_abs(x: t.Tensor) -> t.Tensor:
+    """Use torch.abs."""
+    return (t.abs(x) + x) / 2
+
+
+test_relu(relu_abs)
+#%%
+
+
+def relu_multiply_bool(x: t.Tensor) -> t.Tensor:
+    """Create a boolean tensor and multiply the input by it elementwise."""
+    return x * (x > 0)
+
+
+test_relu(relu_multiply_bool)
+#%%
