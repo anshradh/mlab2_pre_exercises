@@ -279,14 +279,14 @@ def total_price_indexing(prices: t.Tensor, items: t.Tensor) -> float:
     https://numpy.org/doc/stable/user/basics.indexing.html#integer-array-indexing
     """
     assert items.max() < prices.shape[0]
-    pass
+    return prices[items].sum()
 
 
 prices = t.tensor([0.5, 1, 1.5, 2, 2.5])
 items = t.tensor([0, 0, 1, 1, 4, 3, 2])
 assert total_price_indexing(prices, items) == 9.0
 
-
+#%%
 def gather_2d(matrix: t.Tensor, indexes: t.Tensor) -> t.Tensor:
     """Perform a gather operation along the second dimension.
 
@@ -313,7 +313,7 @@ indexes2 = t.tensor([[2, 4], [1, 3], [0, 2]])
 expected2 = t.tensor([[2, 4], [6, 8], [10, 12]])
 assert_all_equal(gather_2d(matrix, indexes), expected)
 
-
+#%%
 def total_price_gather(prices: t.Tensor, items: t.Tensor) -> float:
     """Compute the same as total_price_indexing, but use torch.gather."""
     assert items.max() < prices.shape[0]
