@@ -216,7 +216,8 @@ def identity_matrix(n: int) -> t.Tensor:
     Bonus: find a different way to do it.
     """
     assert n >= 0
-    return rearrange(t.arange(n), "x -> 1 x") == rearrange(t.arange(n), "x -> x 1")
+    # return rearrange(t.arange(n), "x -> 1 x") == rearrange(t.arange(n), "x -> x 1")
+    return t.arange(n)[None, :] == t.arange(n)[:, None]
 
 
 assert_all_equal(identity_matrix(3), t.Tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]))
@@ -237,7 +238,10 @@ def sample_distribution(probs: t.Tensor, n: int) -> t.Tensor:
     """
     assert abs(probs.sum() - 1.0) < 0.001
     assert (probs >= 0).all()
-    pass
+    k = probs.shape
+    return t.argmax(
+        t.where(t.rand(n)[:, None] <= t.cumsum(probs, 0)[None, :], 1, 0), dim=1
+    )
 
 
 n = 10000000
@@ -245,7 +249,7 @@ probs = t.tensor([0.05, 0.1, 0.1, 0.2, 0.15, 0.4])
 freqs = t.bincount(sample_distribution(probs, n)) / n
 assert_all_close(freqs, probs, rtol=0.001, atol=0.001)
 
-
+#%%
 def classifier_accuracy(scores: t.Tensor, true_classes: t.Tensor) -> t.Tensor:
     """Return the fraction of inputs for which the maximum score corresponds to the true class for that input.
 
@@ -263,7 +267,7 @@ true_classes = t.tensor([0, 1, 0])
 expected = 2.0 / 3.0
 assert classifier_accuracy(scores, true_classes) == expected
 
-
+#%%
 def total_price_indexing(prices: t.Tensor, items: t.Tensor) -> float:
     """Given prices for each kind of item and a tensor of items purchased, return the total price.
 
