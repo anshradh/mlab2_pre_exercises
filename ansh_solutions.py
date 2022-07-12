@@ -299,9 +299,14 @@ def gather_2d(matrix: t.Tensor, indexes: t.Tensor) -> t.Tensor:
 
     See: https://pytorch.org/docs/stable/generated/torch.gather.html?highlight=gather#torch.gather
     """
-    "TODO: YOUR CODE HERE"
+    assert indexes.shape[0] == matrix.shape[0]
     out = matrix.gather(1, indexes)
-    "TODO: YOUR CODE HERE"
+    assert indexes.shape == out.shape
+    assert (
+        out[i][j] == matrix[i][indexes[i][j]]
+        for i in range(indexes.shape[0])
+        for j in range(indexes.shape[1])
+    )
     return out
 
 
@@ -317,14 +322,14 @@ assert_all_equal(gather_2d(matrix, indexes), expected)
 def total_price_gather(prices: t.Tensor, items: t.Tensor) -> float:
     """Compute the same as total_price_indexing, but use torch.gather."""
     assert items.max() < prices.shape[0]
-    pass
+    return t.gather(prices, 0, items).sum()
 
 
 prices = t.tensor([0.5, 1, 1.5, 2, 2.5])
 items = t.tensor([0, 0, 1, 1, 4, 3, 2])
 assert total_price_gather(prices, items) == 9.0
 
-
+#%%
 def integer_array_indexing(matrix: t.Tensor, coords: t.Tensor) -> t.Tensor:
     """Return the values at each coordinate using integer array indexing.
 
@@ -336,7 +341,7 @@ def integer_array_indexing(matrix: t.Tensor, coords: t.Tensor) -> t.Tensor:
 
     Return: (batch, )
     """
-    pass
+    return matrix[tuple(rearrange(coords, "b n -> n b"))]
 
 
 mat_2d = t.arange(15).view(3, 5)
@@ -348,7 +353,7 @@ coords_3d = t.tensor([[0, 0, 0], [0, 1, 1], [0, 2, 2], [1, 0, 3], [1, 2, 0]])
 actual = integer_array_indexing(mat_3d, coords_3d)
 assert_all_equal(actual, t.tensor([0, 5, 10, 15, 20]))
 
-
+#%%
 def batched_logsumexp(matrix: t.Tensor) -> t.Tensor:
     """For each row of the matrix, compute log(sum(exp(row))) in a numerically stable way.
 
