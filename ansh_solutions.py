@@ -259,7 +259,7 @@ def classifier_accuracy(scores: t.Tensor, true_classes: t.Tensor) -> t.Tensor:
     Use torch.argmax.
     """
     assert true_classes.max() < scores.shape[1]
-    pass
+    return t.sum(scores.argmax(dim=1) == true_classes) / true_classes.shape[0]
 
 
 scores = t.tensor([[0.75, 0.5, 0.25], [0.1, 0.5, 0.4], [0.1, 0.7, 0.2]])
