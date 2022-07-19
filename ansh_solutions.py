@@ -480,14 +480,14 @@ def collect_columns(matrix: t.Tensor, column_indexes: t.Tensor) -> t.Tensor:
     Bonus: explain why matrix[:, column_indexes] doesn't work as a solution.
     """
     assert column_indexes.max() < matrix.shape[1]
-    return matrix[:, column_indexes].transpose(0, 1)
+    return matrix[:, column_indexes]
 
 
 matrix = t.arange(15).view((5, 3))
 column_indexes = t.tensor([0, 2, 1, 0])
 actual = collect_columns(matrix, column_indexes)
 expected = t.tensor(
-    [[0, 3, 6, 9, 12], [2, 5, 8, 11, 14], [1, 4, 7, 10, 13], [0, 3, 6, 9, 12]]
+    [[0, 2, 1, 0], [3, 5, 4, 3], [6, 8, 7, 6], [9, 11, 10, 9], [12, 14, 13, 12]]
 )
 assert_all_equal(actual, expected)
 #%%
